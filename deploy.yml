@@ -1,0 +1,41 @@
+name: Deploy to Railway
+
+on:
+  push:
+    branches:
+      - main  # Der Branch, bei dem der Workflow ausgelöst wird
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Repository auschecken
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # Node.js installieren
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      # Abhängigkeiten installieren
+      - name: Install dependencies
+        run: npm install
+
+      # Optional: Anwendung bauen, falls benötigt
+      - name: Build application
+        run: |
+          if [ -f package.json ]; then
+            npm run build || echo "No build step defined."
+          fi
+
+      # Deployment zu Railway
+      - name: Deploy to Railway
+        env:
+          DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          PORT: ${{ secrets.PORT }}
+        run: |
+          npx railway up --auto-approve
