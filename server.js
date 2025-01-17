@@ -1,4 +1,4 @@
-require("dotenv").config(); // Laden von Umgebungsvariablen
+require("dotenv").config(); // Laden der Umgebungsvariablen
 
 const express = require("express");
 const cors = require("cors");
@@ -8,20 +8,15 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
 const app = express();
-const port = process.env.PORT || 4000;
-const JWT_SECRET = process.env.JWT_SECRET || "dein_geheimes_jwt";
+const port = process.env.PORT || 4000; // Standard-Port aus Umgebungsvariablen
+const JWT_SECRET = process.env.JWT_SECRET;
 
-// PostgreSQL Database connection
+// PostgreSQL-Datenbank-Verbindung
 const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME,
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
-  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+  connectionString: process.env.DB_CONNECTION_STRING, // Verbindung aus Umgebungsvariablen
 });
 
-// Test database connection
+// Test der Datenbank-Verbindung
 pool.query("SELECT NOW()", (err, res) => {
   if (err) {
     console.error("[ERROR] Fehler bei der Datenbankverbindung:", err);
@@ -34,19 +29,23 @@ pool.query("SELECT NOW()", (err, res) => {
 app.use(cors());
 app.use(bodyParser.json());
 
-// Root Route
+// Root-Route
 app.get("/", (req, res) => {
   res.send("Willkommen bei Market Minds API!");
 });
 
-// User Registration
+// API-Endpunkte
+
+// 1. Registrierung eines neuen Benutzers
 app.post("/register", async (req, res) => {
   const { email, password } = req.body;
+
   if (!email || !password) {
     return res
       .status(400)
       .json({ error: "E-Mail und Passwort sind erforderlich" });
   }
+
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     await pool.query(
@@ -60,14 +59,16 @@ app.post("/register", async (req, res) => {
   }
 });
 
-// User Login
+// 2. Benutzer-Login
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
+
   if (!email || !password) {
     return res
       .status(400)
       .json({ error: "E-Mail und Passwort sind erforderlich" });
   }
+
   try {
     const result = await pool.query("SELECT * FROM users WHERE email = $1", [
       email,
@@ -75,6 +76,7 @@ app.post("/login", async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(401).json({ error: "Ungültige Anmeldedaten" });
     }
+
     const user = result.rows[0];
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
@@ -91,12 +93,14 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// Save Parameters
+// 3. Speichern von Parametern
 app.post("/parameters", async (req, res) => {
   const { userId, parameterName, value } = req.body;
+
   if (!userId || !parameterName || value === undefined) {
     return res.status(400).json({ error: "Alle Felder sind erforderlich" });
   }
+
   try {
     await pool.query(
       "INSERT INTO parameters (id, user_id, parameter_name, value, created_at) VALUES (gen_random_uuid(), $1, $2, $3, now())",
@@ -109,9 +113,10 @@ app.post("/parameters", async (req, res) => {
   }
 });
 
-// Get Trading Ideas
+// 4. Abrufen von Handelsideen
 app.get("/ideas/:userId", async (req, res) => {
   const { userId } = req.params;
+
   try {
     const result = await pool.query("SELECT * FROM ideas WHERE user_id = $1", [
       userId,
@@ -123,7 +128,7 @@ app.get("/ideas/:userId", async (req, res) => {
   }
 });
 
-// Start the server
+// Start des Servers mit Fehlerbehandlung
 app.listen(port, (err) => {
   if (err) {
     console.error("[ERROR] Server konnte nicht gestartet werden:", err);
